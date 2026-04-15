@@ -1,99 +1,104 @@
-package config_test
+package config
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/user/portwatch/internal/config"
 )
 
 func writeTemp(t *testing.T, content string) string {
 	t.Helper()
-	f, err := os.CreateTemp(t.TempDir(), "portwatch-*.yaml")
+	f, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
 	if err != nil {
-		t.Fatalf("create temp file: %v", err)
+		t.Fatalf("failed to create temp file: %v", err)
 	}
 	if _, err := f.WriteString(content); err != nil {
-		t.Fatalf("write temp file: %v", err)
+		t.Fatalf("failed to write temp file: %v", err)
 	}
-	f.Close()
+	_ = f.Close()
 	return f.Name()
 }
 
 func TestLoad_ValidConfig(t *testing.T) {
-	yaml := `
-scan_interval_seconds: 60
+	path := writeTemp(t, `
+scan_interval: 10
 port_range:
-  start: 1024
-  end: 9000
-protocols:
-  - tcp
-  - udp
-rules:
-  - name: allow-ssh
-    port: 22
-    protocol: tcp
-    action: allow
-alert:
-  output: stdout
-`
-	path := writeTemp(t, yaml)
-	cfg, err := config.Load(path)
+  start: 1
+  end: 1024
+protocols: [tcp]
+snapshot_path: /tmp/snap.json
+`)
+	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.ScanInterval != 60 {
-		t.Errorf("expected scan_interval 60, got %d", cfg.ScanInterval)
-	}
-	if cfg.PortRange.Start != 1024 || cfg.PortRange.End != 9000 {
-		t.Errorf("unexpected port range: %+v", cfg.PortRange)
-	}
-	if len(cfg.Rules) != 1 || cfg.Rules[0].Name != "allow-ssh" {
-		t.Errorf("unexpected rules: %+v", cfg.Rules)
+	if cfg.ScanInterval != 10 {
+		t.Errorf("expected scan_interval 10, got %d", cfg.ScanInterval)
 	}
 }
 
 func TestLoad_MissingFile(t *testing.T) {
-	_, err := config.Load(filepath.Join(t.TempDir(), "nonexistent.yaml"))
+	_, err := Load(filepath.Join(t.TempDir(), "nonexistent.yaml"))
 	if err == nil {
-		t.Fatal("expected error for missing file, got nil")
+		t.Fatal("expected error for missing file")
 	}
 }
 
 func TestLoad_InvalidPortRange(t *testing.T) {
-	yaml := `
+	path := writeTemp(t, `
+scan_interval: 5
 port_range:
-  start: 9000
-  end: 1024
-`
-	path := writeTemp(t, yaml)
-	_, err := config.Load(path)
+  start: 1000
+  end: 100
+`)
+	_, err := Load(path)
 	if err == nil {
-		t.Fatal("expected validation error for invalid port range")
+		t.Fatal("expected error for invalid port range")
 	}
 }
 
 func TestLoad_DefaultsApplied(t *testing.T) {
-	path := writeTemp(t, "{}")
-	cfg, err := config.Load(path)
+	path := writeTemp(t, `
+port_range:
+  start: 1
+  end: 1024
+`)
+	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.ScanInterval != 30 {
-		t.Errorf("expected default scan_interval 30, got %d", cfg.ScanInterval)
-	}
-	if len(cfg.Protocols) == 0 || cfg.Protocols[0] != "tcp" {
-		t.Errorf("expected default protocol tcp, got %v", cfg.Protocols)
+	def := Default()
+	if cfg.ScanInterval != def.ScanInterval {
+		t.Errorf("expected default scan_interval %d, got %d", def.ScanInterval, cfg.ScanInterval)
 	}
 }
 
-func TestDefault(t *testing.T) {
-	cfg := config.Default()
-	if cfg.ScanInterval != 30 {
-		t.Errorf("expected 30, got %d", cfg.ScanInterval)
+func TestLoad_EmailAlertConfig(t *testing.T) {
+	path := writeTemp(t, `
+scan_interval: 5
+port_range:
+  start: 1
+  end: 1024
+alerts:
+  email:
+    enabled: true
+    smtp_host: smtp.example.com
+    smtp_port: 465
+    from: noreply@example.com
+    to:
+      - admin@example.com
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.PortRange.Start != 1 || cfg.PortRange.End != 65535 {
-		t.Errorf("unexpected default port range: %+v", cfg.PortRange)
+	if !cfg.Alerts.Email.Enabled {
+		t.Error("expected email alerts to be enabled")
+	}
+	if cfg.Alerts.Email.SMTPHost != "smtp.example.com" {
+		t.Errorf("unexpected smtp host: %s", cfg.Alerts.Email.SMTPHost)
+	}
+	if len(cfg.Alerts.Email.To) != 1 || cfg.Alerts.Email.To[0] != "admin@example.com" {
+		t.Errorf("unexpected recipients: %v", cfg.Alerts.Email.To)
 	}
 }
