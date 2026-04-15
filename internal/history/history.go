@@ -1,5 +1,3 @@
-// Package history provides a rolling history of port scan events
-// for trend analysis and repeated-violation detection.
 package history
 
 import (
@@ -7,33 +5,32 @@ import (
 	"time"
 )
 
-// Entry records a single scan event and any violations detected.
+const defaultMaxSize = 1000
+
+// Entry represents a single scan-cycle record stored in history.
 type Entry struct {
-	Timestamp  time.Time
-	OpenPorts  []int
-	Violations []string
+	Timestamp time.Time
+	Added     []int
+	Removed   []int
 }
 
-// History holds a bounded, in-memory ring of scan entries.
+// History is a thread-safe, bounded ring-buffer of scan entries.
 type History struct {
 	mu      sync.RWMutex
 	entries []Entry
 	maxSize int
 }
 
-// New creates a History that retains at most maxSize entries.
-// If maxSize is <= 0 it defaults to 100.
+// New creates a History with the given maximum number of entries.
+// If maxSize <= 0 the defaultMaxSize is used.
 func New(maxSize int) *History {
 	if maxSize <= 0 {
-		maxSize = 100
+		maxSize = defaultMaxSize
 	}
-	return &History{
-		entries: make([]Entry, 0, maxSize),
-		maxSize: maxSize,
-	}
+	return &History{maxSize: maxSize}
 }
 
-// Add appends a new entry, evicting the oldest when the buffer is full.
+// Add appends an entry, evicting the oldest when the buffer is full.
 func (h *History) Add(e Entry) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -43,7 +40,14 @@ func (h *History) Add(e Entry) {
 	h.entries = append(h.entries, e)
 }
 
-// Entries returns a shallow copy of all stored entries, oldest first.
+// Len returns the current number of stored entries.
+func (h *History) Len() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.entries)
+}
+
+// Entries returns a shallow copy of all stored entries.
 func (h *History) Entries() []Entry {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -52,21 +56,21 @@ func (h *History) Entries() []Entry {
 	return out
 }
 
-// Len returns the current number of stored entries.
-func (h *History) Len() int {
+// Last returns the most recent entry and true, or a zero Entry and false if
+// the history is empty.
+func (h *History) Last() (Entry, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return len(h.entries)
+	if len(h.entries) == 0 {
+		return Entry{}, false
+	}
+	return h.entries[len(h.entries)-1], true
 }
 
-// ViolationCount returns the total number of violations recorded across
-// all entries in the history window.
-func (h *History) ViolationCount() int {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	total := 0
-	for _, e := range h.entries {
-		total += len(e.Violations)
-	}
-	return total
+// Replace atomically replaces all entries with the provided slice.
+func (h *History) Replace(entries []Entry) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.entries = make([]Entry, len(entries))
+	copy(h.entries, entries)
 }
