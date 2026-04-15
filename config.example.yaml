@@ -1,0 +1,43 @@
+# portwatch example configuration
+
+# How often to scan ports (in seconds).
+scan_interval_seconds: 30
+
+# Inclusive port range to scan.
+port_range:
+  start: 1
+  end: 65535
+
+# Protocols to scan. Supported: tcp, udp.
+protocols:
+  - tcp
+
+# Rules define expected port states.
+# action: "allow"  — port being open is expected (no alert).
+# action: "deny"   — port being open triggers an alert.
+# action: "ignore" — skip this port entirely.
+rules:
+  - name: allow-ssh
+    port: 22
+    protocol: tcp
+    action: allow
+
+  - name: allow-http
+    port: 80
+    protocol: tcp
+    action: allow
+
+  - name: allow-https
+    port: 443
+    protocol: tcp
+    action: allow
+
+  - name: deny-telnet
+    port: 23
+    protocol: tcp
+    action: deny
+
+# Alert output destination.
+# Use "stdout" or provide a file path (e.g. "/var/log/portwatch.log").
+alert:
+  output: stdout
