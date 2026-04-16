@@ -86,3 +86,28 @@ func TestEmailNotifier_Notify_SendError(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+func TestEmailNotifier_Notify_MessageContainsPortAndProtocol(t *testing.T) {
+	var capturedMsg []byte
+
+	n, _ := NewEmailNotifier(EmailConfig{
+		SMTPHost: "smtp.example.com",
+		To:       []string{"to@example.com"},
+	})
+	n.send = func(_ string, _ smtp.Auth, _ string, _ []string, msg []byte) error {
+		capturedMsg = msg
+		return nil
+	}
+
+	err := n.Notify(Alert{Rule: "test-rule", Port: 443, Protocol: "tcp", Timestamp: time.Now()})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	body := string(capturedMsg)
+	if !strings.Contains(body, "443") {
+		t.Error("expected port 443 in message body")
+	}
+	if !strings.Contains(body, "tcp") {
+		t.Error("expected protocol 'tcp' in message body")
+	}
+}
