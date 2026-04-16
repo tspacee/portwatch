@@ -7,10 +7,10 @@ import (
 
 // Backoff implements exponential backoff for retry delays.
 type Backoff struct {
-	baseDelay time.Duration
-	maxDelay  time.Duration
+	baseDelay  time.Duration
+	maxDelay   time.Duration
 	multiplier float64
-	attempt   int
+	attempt    int
 }
 
 // NewBackoff creates a Backoff with the given base and max delay.
@@ -47,4 +47,10 @@ func (b *Backoff) Reset() {
 // Attempt returns the current attempt count.
 func (b *Backoff) Attempt() int {
 	return b.attempt
+}
+
+// AtMax reports whether the next call to Next will return the maximum delay.
+func (b *Backoff) AtMax() bool {
+	delay := float64(b.baseDelay) * math.Pow(b.multiplier, float64(b.attempt))
+	return delay >= float64(b.maxDelay)
 }
