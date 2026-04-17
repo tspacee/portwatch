@@ -40,6 +40,33 @@ func buildWatcher(t *testing.T) *watch.Watcher {
 	return w
 }
 
+func buildWatcherWithCollector(t *testing.T, col *metrics.Collector) *watch.Watcher {
+	t.Helper()
+	scanner, err := portscanner.NewScanner(portscanner.Config{StartPort: 1, EndPort: 100})
+	if err != nil {
+		t.Fatalf("scanner: %v", err)
+	}
+	engine, err := rules.NewEngine(nil)
+	if err != nil {
+		t.Fatalf("engine: %v", err)
+	}
+	mgr := snapshot.NewManager("")
+	notifier := alert.NewLogNotifier(bytes.NewBuffer(nil))
+	disp := alert.NewDispatcher(notifier)
+	w, err := watch.New(watch.Config{
+		Scanner:    scanner,
+		Engine:     engine,
+		Manager:    mgr,
+		Dispatcher: disp,
+		Collector:  col,
+		Interval:   30 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("watcher with collector: %v", err)
+	}
+	return w
+}
+
 func TestNew_MissingScanner(t *testing.T) {
 	_, err := watch.New(watch.Config{})
 	if err == nil {
@@ -80,23 +107,8 @@ func TestRun_StopsOnContextCancel(t *testing.T) {
 }
 
 func TestRun_RecordsMetrics(t *testing.T) {
-	w := buildWatcher(t)
 	col := metrics.NewCollector()
-	// rebuild with collector attached
-	scanner, _ := portscanner.NewScanner(portscanner.Config{StartPort: 1, EndPort: 100})
-	engine, _ := rules.NewEngine(nil)
-	mgr := snapshot.NewManager("")
-	notifier := alert.NewLogNotifier(bytes.NewBuffer(nil))
-	disp := alert.NewDispatcher(notifier)
-	w, _ = watch.New(watch.Config{
-		Scanner:    scanner,
-		Engine:     engine,
-		Manager:    mgr,
-		Dispatcher: disp,
-		Collector:  col,
-		Interval:   30 * time.Millisecond,
-	})
-	_ = w
+	w := buildWatcherWithCollector(t, col)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	w.Run(ctx) //nolint:errcheck
