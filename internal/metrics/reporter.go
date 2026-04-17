@@ -32,7 +32,7 @@ func (r *Reporter) Print() {
 	fmt.Fprintf(w, "Total scans:\t%d\n", s.TotalScans)
 	fmt.Fprintf(w, "Errored scans:\t%d\n", s.ErroredScans)
 	fmt.Fprintf(w, "Total violations:\t%d\n", s.TotalViolations)
-	fmt.Fprintf(w, "Avg scan duration:\t%v\n", s.AvgScanDuration.Round(time.Millisecond))
+	fAvg scan duration:\t%v\n", s.AvgScanDuration.Round(time.Millisecond))
 
 	if !s.LastScan.IsZero() {
 		fmt.Fprintf(w, "Last scan:\t%s\n", s.LastScan.Format(time.RFC3339))
@@ -42,4 +42,13 @@ func (r *Reporter) Print() {
 	}
 
 	w.Flush()
+}
+
+// PrintTo writes the current metrics summary to the provided writer,
+// without changing the Reporter's configured output destination.
+func (r *Reporter) PrintTo(out io.Writer) {
+	tmp := r.out
+	r.out = out
+	r.Print()
+	r.out = tmp
 }
