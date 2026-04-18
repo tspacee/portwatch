@@ -73,3 +73,18 @@ func TestAuditLog_Clear(t *testing.T) {
 		t.Errorf("expected 0 after clear, got %d", al.Len())
 	}
 }
+
+func TestAuditLog_Add_Evicts_Maintains_Order(t *testing.T) {
+	al, _ := NewAuditLog(3)
+	al.Add(makeAuditEntry(80, "opened"))
+	al.Add(makeAuditEntry(443, "opened"))
+	al.Add(makeAuditEntry(8080, "opened"))
+	al.Add(makeAuditEntry(9090, "opened"))
+	entries := al.Entries()
+	expected := []int{443, 8080, 9090}
+	for i, e := range entries {
+		if e.Port != expected[i] {
+			t.Errorf("index %d: expected port %d, got %d", i, expected[i], e.Port)
+		}
+	}
+}
