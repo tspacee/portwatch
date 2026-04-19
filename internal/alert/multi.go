@@ -34,6 +34,11 @@ func (m *MultiNotifier) Notify(a Alert) error {
 	return fmt.Errorf("multi notifier: %d notifier(s) failed: %w", len(errs), errors.Join(errs...))
 }
 
+// Add appends one or more notifiers to the MultiNotifier.
+func (m *MultiNotifier) Add(notifiers ...Notifier) {
+	m.notifiers = append(m.notifiers, notifiers...)
+}
+
 // Len returns the number of registered notifiers.
 func (m *MultiNotifier) Len() int {
 	return len(m.notifiers)
