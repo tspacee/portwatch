@@ -33,10 +33,10 @@ type RuleEntry struct {
 
 // AlertConfig holds notifier configurations.
 type AlertConfig struct {
-	Log     bool        `yaml:"log"`
-	Webhook string      `yaml:"webhook"`
-	Slack   string      `yaml:"slack"`
-	Email   EmailAlert  `yaml:"email"`
+	Log     bool       `yaml:"log"`
+	Webhook string     `yaml:"webhook"`
+	Slack   string     `yaml:"slack"`
+	Email   EmailAlert `yaml:"email"`
 }
 
 // EmailAlert holds email-specific alert configuration.
@@ -72,6 +72,25 @@ func validate(cfg *Config) error {
 	}
 	if cfg.ScanInterval < 1 {
 		return fmt.Errorf("config: scan_interval must be >= 1")
+	}
+	if err := validateRules(cfg.Rules); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateRules checks that each rule entry has required fields and a valid port.
+func validateRules(rules []RuleEntry) error {
+	for i, r := range rules {
+		if r.Name == "" {
+			return fmt.Errorf("config: rule[%d]: name is required", i)
+		}
+		if r.Port < 1 || r.Port > 65535 {
+			return fmt.Errorf("config: rule[%d] %q: invalid port %d", i, r.Name, r.Port)
+		}
+		if r.Protocol != "tcp" && r.Protocol != "udp" {
+			return fmt.Errorf("config: rule[%d] %q: protocol must be tcp or udp, got %q", i, r.Name, r.Protocol)
+		}
 	}
 	return nil
 }
