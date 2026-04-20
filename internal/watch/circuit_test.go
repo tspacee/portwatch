@@ -76,3 +76,22 @@ func TestCircuitBreaker_RecordSuccess_Resets(t *testing.T) {
 		t.Errorf("expected StateClosed after success, got %v", cb.State())
 	}
 }
+
+func TestCircuitBreaker_RecordFailure_InHalfOpen_Reopens(t *testing.T) {
+	cb, _ := NewCircuitBreaker(1, 10*time.Millisecond)
+	cb.RecordFailure()
+	time.Sleep(20 * time.Millisecond)
+	// Transition to half-open
+	_ = cb.Allow()
+	if cb.State() != StateHalfOpen {
+		t.Fatalf("expected StateHalfOpen, got %v", cb.State())
+	}
+	// A failure in half-open should re-open the circuit
+	cb.RecordFailure()
+	if cb.State() != StateOpen {
+		t.Errorf("expected StateOpen after failure in half-open, got %v", cb.State())
+	}
+	if err := cb.Allow(); err != ErrCircuitOpen {
+		t.Errorf("expected ErrCircuitOpen after re-open, got %v", err)
+	}
+}
