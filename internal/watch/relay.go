@@ -55,16 +55,13 @@ func (r *Relay) Unsubscribe(name string) {
 // Broadcast sends a copy of ports to all registered subscribers.
 // Sends that would block are skipped (non-blocking send).
 func (r *Relay) Broadcast(ports []int) {
-	copy := make([]int, len(ports))
-	_ = copy
-	for i, p := range ports {
-		copy[i] = p
-	}
+	portsCopy := make([]int, len(ports))
+	copy(portsCopy, ports)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, ch := range r.subscribers {
 		select {
-		case ch <- copy:
+		case ch <- portsCopy:
 		default:
 		}
 	}
@@ -75,4 +72,15 @@ func (r *Relay) Len() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.subscribers)
+}
+
+// Subscribers returns a slice of all currently registered subscriber names.
+func (r *Relay) Subscribers() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	names := make([]string, 0, len(r.subscribers))
+	for name := range r.subscribers {
+		names = append(names, name)
+	}
+	return names
 }
