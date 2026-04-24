@@ -64,3 +64,12 @@ func TestResolver_Register_Overwrite(t *testing.T) {
 		t.Errorf("expected custom-ssh, got %s", got)
 	}
 }
+
+func TestResolver_Register_Overwrite_DoesNotIncreaseLen(t *testing.T) {
+	r := NewResolver()
+	base := r.Len()
+	_ = r.Register(22, "custom-ssh")
+	if r.Len() != base {
+		t.Errorf("expected Len to remain %d after overwrite, got %d", base, r.Len())
+	}
+}
