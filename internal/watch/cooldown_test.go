@@ -58,6 +58,18 @@ func TestCooldown_Reset_MakesReady(t *testing.T) {
 	}
 }
 
+func TestCooldown_Reset_ClearsRemaining(t *testing.T) {
+	c, _ := NewCooldown(500 * time.Millisecond)
+	c.Ready()
+	if r := c.Remaining(); r <= 0 {
+		t.Fatalf("expected positive remaining after fire, got %v", r)
+	}
+	c.Reset()
+	if r := c.Remaining(); r != 0 {
+		t.Fatalf("expected 0 remaining after Reset, got %v", r)
+	}
+}
+
 func TestCooldown_Remaining_ZeroBeforeFire(t *testing.T) {
 	c, _ := NewCooldown(100 * time.Millisecond)
 	if r := c.Remaining(); r != 0 {
