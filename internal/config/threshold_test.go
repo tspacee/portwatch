@@ -37,6 +37,13 @@ func TestThresholdConfig_Validate_EnabledWithZeroLimit(t *testing.T) {
 	}
 }
 
+func TestThresholdConfig_Validate_EnabledWithNegativeLimit(t *testing.T) {
+	cfg := ThresholdConfig{Enabled: true, Limit: -1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for negative limit when enabled")
+	}
+}
+
 func TestThresholdConfig_Validate_DisabledWithZeroLimit_Valid(t *testing.T) {
 	cfg := ThresholdConfig{Enabled: false, Limit: 0}
 	if err := cfg.Validate(); err != nil {
