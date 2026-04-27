@@ -60,6 +60,15 @@ func TestRelay_Unsubscribe_DecrementsLen(t *testing.T) {
 	}
 }
 
+func TestRelay_Unsubscribe_NonExistent(t *testing.T) {
+	r, _ := NewRelay(4)
+	// Unsubscribing a name that was never subscribed should not panic or affect len.
+	r.Unsubscribe("ghost")
+	if r.Len() != 0 {
+		t.Errorf("expected len 0 after unsubscribing non-existent name, got %d", r.Len())
+	}
+}
+
 func TestRelay_Broadcast_DeliversToSubscriber(t *testing.T) {
 	r, _ := NewRelay(4)
 	ch, _ := r.Subscribe("listener")
